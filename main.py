@@ -43,7 +43,7 @@ def save_after_ggnn(output_dir, model, loss_function, name, num_batches, get_fn,
             final += list(zip(output.tolist(), [int(i) for i in targets.tolist()]))
 
     final = list(map(lambda f: {'graph_feature':f[0], 'target':f[1]}, final))
-    dst_filepath = os.path.join(output_dir, name + '_GGNNoutput_graph.json')
+    dst_filepath = os.path.join(output_dir, name + '_GGNNinput_graph.json')
     logger_fn(f'Saving to {dst_filepath}')
     with open(dst_filepath, 'w') as f:
         f.write(json.dumps(final))
