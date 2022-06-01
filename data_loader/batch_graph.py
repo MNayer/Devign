@@ -1,4 +1,5 @@
 import torch
+import os
 from dgl import DGLGraph
 
 CUDA="CUDA" in os.environ and os.environ["CUDA"] == "1"
