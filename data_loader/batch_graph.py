@@ -1,6 +1,7 @@
 import torch
 from dgl import DGLGraph
 
+CUDA="CUDA" in os.environ and os.environ["CUDA"] == "1"
 
 class BatchGraph:
     def __init__(self):
@@ -55,4 +56,3 @@ class GGNNBatchGraph(BatchGraph):
             return self.graph, features.cuda(device=device), edge_types.cuda(device=device)
         else:
             return self.graph, features, edge_types
-        pass

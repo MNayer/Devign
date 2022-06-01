@@ -8,6 +8,7 @@ from tqdm import tqdm
 
 from utils import debug
 
+CUDA="CUDA" in os.environ and os.environ["CUDA"] == "1"
 
 def evaluate_loss(model, loss_function, num_batches, data_iter, cuda=False):
     model.eval()
@@ -16,8 +17,11 @@ def evaluate_loss(model, loss_function, num_batches, data_iter, cuda=False):
         all_predictions, all_targets = [], []
         for _ in range(num_batches):
             graph, targets = data_iter()
-            targets = targets.cuda()
-            predictions = model(graph, cuda=True)
+            if CUDA:
+                targets = targets.cuda()
+                predictions = model(graph, cuda=True)
+            else:
+                predictions = model(graph, cuda=False)
             batch_loss = loss_function(predictions, targets)
             _loss.append(batch_loss.detach().cpu().item())
             predictions = predictions.detach().cpu()
@@ -41,8 +45,11 @@ def evaluate_metrics(model, loss_function, num_batches, data_iter):
         all_predictions, all_targets = [], []
         for _ in range(num_batches):
             graph, targets = data_iter()
-            targets = targets.cuda()
-            predictions = model(graph, cuda=True)
+            if CUDA:
+                targets = targets.cuda()
+                predictions = model(graph, cuda=True)
+            else:
+                predictions = model(graph, cuda=False)
             batch_loss = loss_function(predictions, targets)
             _loss.append(batch_loss.detach().cpu().item())
             predictions = predictions.detach().cpu()
@@ -73,8 +80,11 @@ def train(model, dataset, max_steps, dev_every, loss_function, optimizer, save_p
             model.train()
             model.zero_grad()
             graph, targets = dataset.get_next_train_batch()
-            targets = targets.cuda()
-            predictions = model(graph, cuda=True)
+            if CUDA:
+                targets = targets.cuda()
+                predictions = model(graph, cuda=True)
+            else:
+                predictions = model(graph, cuda=False)
             batch_loss = loss_function(predictions, targets)
             if log_every is not None and (step_count % log_every == log_every - 1):
                 debug('Step %d\t\tTrain Loss %10.3f' % (step_count, batch_loss.detach().cpu().item()))

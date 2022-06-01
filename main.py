@@ -13,6 +13,8 @@ from modules.model import DevignModel, GGNNSum
 from trainer import train
 from utils import tally_param, debug
 
+CUDA="CUDA" in os.environ and os.environ["CUDA"] == "1"
+print("CUDA is %s" % ("enabled" if CUDA else "disabled"))
 
 if __name__ == '__main__':
     torch.manual_seed(1000)
@@ -67,9 +69,13 @@ if __name__ == '__main__':
 
     debug('Total Parameters : %d' % tally_param(model))
     debug('#' * 100)
-    model.cuda()
+    if CUDA:
+        model.cuda()
     loss_function = BCELoss(reduction='sum')
     optim = Adam(model.parameters(), lr=0.0001, weight_decay=0.001)
+    #train(model=model, dataset=dataset, max_steps=1000000, dev_every=128,
+    #      loss_function=loss_function, optimizer=optim,
+    #      save_path=model_dir + '/GGNNSumModel', max_patience=100, log_every=None)
     train(model=model, dataset=dataset, max_steps=1000000, dev_every=128,
           loss_function=loss_function, optimizer=optim,
-          save_path=model_dir + '/GGNNSumModel', max_patience=100, log_every=None)
+          save_path=model_dir + '/GGNNSumModel', max_patience=5, log_every=None)

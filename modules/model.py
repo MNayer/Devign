@@ -2,7 +2,9 @@ import torch
 from dgl.nn import GatedGraphConv
 from torch import nn
 import torch.nn.functional as f
+import os
 
+CUDA="CUDA" in os.environ and os.environ["CUDA"] == "1"
 
 class DevignModel(nn.Module):
     def __init__(self, input_dim, output_dim, max_edge_types, num_steps=8):
