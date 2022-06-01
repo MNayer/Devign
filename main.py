@@ -2,6 +2,7 @@ import argparse
 import os
 import pickle
 import sys
+import json
 
 import numpy as np
 import torch
@@ -15,6 +16,37 @@ from utils import tally_param, debug
 
 CUDA="CUDA" in os.environ and os.environ["CUDA"] == "1"
 print("CUDA is %s" % ("enabled" if CUDA else "disabled"))
+
+def save_after_ggnn(output_dir, model, loss_function, name, num_batches, get_fn, logger_fn=print):
+    all_predictions = []
+    all_targets = []
+    all_loss = []
+    final = []
+    with torch.no_grad():
+        for l in range(num_batches):
+            graph, targets = get_fn()
+            if CUDA:
+                graph.cuda(device='cuda:0')
+                graph.graph = graph.graph.to('cuda:0')
+                targets = targets.cuda()
+                predictions = model(graph, cuda=True)
+            else:
+                predictions = model(graph, cuda=False)
+            batch_loss = loss_function(predictions, targets)
+            all_predictions.extend(
+                predictions.ge(torch.ones_like(predictions) / 2)
+                .detach().cpu().int().numpy().tolist())
+            all_targets.extend(targets.detach().cpu().int().numpy().tolist())
+            all_loss.append(batch_loss.detach().cpu().item())
+
+            output = model.get_graph_embeddings(graph)
+            final += list(zip(output.tolist(), [int(i) for i in targets.tolist()]))
+
+    final = list(map(lambda f: {'graph_feature':f[0], 'target':f[1]}, final))
+    dst_filepath = os.path.join(output_dir, name + '_GGNNoutput_graph.json')
+    logger_fn(f'Saving to {dst_filepath}')
+    with open(dst_filepath, 'w') as of:
+        f.write(json.dumps(final))
 
 if __name__ == '__main__':
     torch.manual_seed(1000)
@@ -32,6 +64,7 @@ if __name__ == '__main__':
     parser.add_argument('--graph_embed_size', type=int, help='Size of the Graph Embedding', default=200)
     parser.add_argument('--num_steps', type=int, help='Number of steps in GGNN', default=6)
     parser.add_argument('--batch_size', type=int, help='Batch Size for training', default=128)
+    parser.add_argument('--save_after_ggnn', action='store_true')
     args = parser.parse_args()
 
     if args.feature_size > args.graph_embed_size:
@@ -79,3 +112,11 @@ if __name__ == '__main__':
     train(model=model, dataset=dataset, max_steps=1000000, dev_every=128,
           loss_function=loss_function, optimizer=optim,
           save_path=model_dir + '/GGNNSumModel', max_patience=5, log_every=None)
+
+    if args.save_after_ggnn:
+        after_ggnn_dir = os.path.join(args.input_dir, 'after_ggnn')
+        if not os.path.exists(after_ggnn_dir):
+            os.makedirs(after_ggnn_dir, exist_ok=True)
+        save_after_ggnn(after_ggnn_dir, model, loss_function, 'test', dataset.initialize_test_batch(), dataset.get_next_test_batch, logger_fn=print)
+        save_after_ggnn(after_ggnn_dir, model, loss_function, 'valid', dataset.initialize_valid_batch(), dataset.get_next_valid_batch, logger_fn=print)
+        save_after_ggnn(after_ggnn_dir, model, loss_function, 'train', dataset.initialize_train_batch(), dataset.get_next_train_batch, logger_fn=print)
